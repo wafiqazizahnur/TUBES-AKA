@@ -1,0 +1,178 @@
+import time
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from prettytable import PrettyTable
+import sys
+
+# Set recursion limit
+sys.setrecursionlimit(2000)
+
+class Roti:
+    def __init__(self, id_roti, tanggal_kadaluarsa, deskripsi):
+        self.id = id_roti
+        self.tanggal_kadaluarsa = tanggal_kadaluarsa
+        self.deskripsi = deskripsi
+        self.hari_tersisa = 0
+        self.metode_digunakan = ""
+
+def hari_hingga_kadaluarsa_iteratif(tanggal_sekarang, tanggal_kadaluarsa):
+    if not isinstance(tanggal_sekarang, datetime) or not isinstance(tanggal_kadaluarsa, datetime):
+        raise ValueError("Parameter harus berupa objek datetime")
+    delta = (tanggal_kadaluarsa - tanggal_sekarang).days
+    return max(0, delta)
+
+def hari_hingga_kadaluarsa_rekursif(tanggal_sekarang, tanggal_kadaluarsa):
+    if not isinstance(tanggal_sekarang, datetime) or not isinstance(tanggal_kadaluarsa, datetime):
+        raise ValueError("Parameter harus berupa objek datetime")
+    if tanggal_sekarang >= tanggal_kadaluarsa:
+        return 0
+    return 1 + hari_hingga_kadaluarsa_rekursif(tanggal_sekarang + timedelta(days=1), tanggal_kadaluarsa)
+
+def tampilkan_grafik_waktu_eksekusi(ukuran_data, waktu_rekursif, waktu_iteratif):
+    try:
+        plt.figure(figsize=(10, 6))
+        plt.plot(ukuran_data, waktu_rekursif, label="Rekursif", linewidth=2, color="Red")
+        plt.plot(ukuran_data, waktu_iteratif, label="Iteratif", linewidth=2, color="Blue", alpha=0.7)
+        plt.title("Perbandingan Waktu Eksekusi Metode Rekursif dan Iteratif", fontsize=16)
+        plt.xlabel("Jumlah Data Roti", fontsize=12)
+        plt.ylabel("Waktu Eksekusi (ms)", fontsize=12)
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.legend(fontsize=12)
+        plt.show()
+    except Exception as e:
+        print(f"Error saat menampilkan grafik: {str(e)}")
+
+def tampilkan_tabel_waktu_eksekusi(ukuran_data, waktu_iteratif, waktu_rekursif):
+    try:
+        tabel = PrettyTable()
+        tabel.field_names = ["Ukuran Masukan", "Waktu Iteratif (ms)", "Waktu Rekursif (ms)"]
+        for i in range(len(ukuran_data)):
+            tabel.add_row([ukuran_data[i], f"{waktu_iteratif[i]:.6f}", f"{waktu_rekursif[i]:.6f}"])
+        print("\nAnalisis Waktu Eksekusi")
+        print(tabel)
+    except Exception as e:
+        print(f"Error saat menampilkan tabel: {str(e)}")
+
+def ukur_waktu_eksekusi(rotis, iterasi=5):
+    if not rotis:
+        raise ValueError("List roti tidak boleh kosong")
+
+    waktu_rekursif = []
+    waktu_iteratif = []
+    ukuran_data = list(range(1, len(rotis) + 1))
+    now = datetime.now()
+
+    try:
+        for ukuran in ukuran_data:
+            subset = rotis[:ukuran]
+
+            # Iteratif
+            total_iteratif = 0
+            for _ in range(iterasi):
+                start_time = time.perf_counter()
+                for roti in subset:
+                    hari_hingga_kadaluarsa_iteratif(now, roti.tanggal_kadaluarsa)
+                total_iteratif += (time.perf_counter() - start_time)
+            waktu_iteratif.append((total_iteratif / iterasi) * 1000)
+
+            # Rekursif
+            total_rekursif = 0
+            for _ in range(iterasi):
+                start_time = time.perf_counter()
+                for roti in subset:
+                    hari_hingga_kadaluarsa_rekursif(now, roti.tanggal_kadaluarsa)
+                total_rekursif += (time.perf_counter() - start_time)
+            waktu_rekursif.append((total_rekursif / iterasi) * 1000)
+
+        return ukuran_data, waktu_rekursif, waktu_iteratif
+    except Exception as e:
+        print(f"Error saat mengukur waktu eksekusi: {str(e)}")
+        return [], [], []
+
+def tampilkan_menu():
+    print("\n========== Program Penghitung Kadaluarsa Roti ==========")
+    print("1. Tambah data roti")
+    print("2. Tampilkan semua data roti")
+    print("3. Analisis waktu eksekusi (Tabel & Grafik)")
+    print("4. Keluar")
+    print("========================================================")
+
+def main():
+    rotis = []
+    id_roti = 1
+
+    while True:
+        try:
+            tampilkan_menu()
+            pilihan = input("Pilih menu (1-4): ").strip()
+
+            if pilihan == "1":
+                try:
+                    deskripsi = input("Masukkan nama roti: ").strip()
+                    if not deskripsi:
+                        print("Deskripsi tidak boleh kosong!")
+                        continue
+
+                    while True:
+                        tanggal_kadaluarsa_str = input("Masukkan tanggal kadaluarsa roti (format YYYY-MM-DD): ").strip()
+                        try:
+                            tanggal_kadaluarsa = datetime.strptime(tanggal_kadaluarsa_str, "%Y-%m-%d")
+                            if tanggal_kadaluarsa <= datetime.now():
+                                print("Tanggal kadaluarsa sudah terlewat. Silahkan coba lagi!")
+                                continue
+                            rotis.append(Roti(id_roti, tanggal_kadaluarsa, deskripsi))
+                            id_roti += 1
+                            print("Data roti berhasil ditambahkan.")
+                            break
+                        except ValueError:
+                            print("Format tanggal salah. Harap gunakan format YYYY-MM-DD!")
+                except KeyboardInterrupt:
+                    print("\nPembatalan input data...")
+                    continue
+
+            elif pilihan == "2":
+                if not rotis:
+                    print("Data roti kosong.")
+                    continue
+
+                print("\n===== Data Semua Roti =====")
+                now = datetime.now()
+                for roti in rotis:
+                    hari_tersisa = hari_hingga_kadaluarsa_iteratif(now, roti.tanggal_kadaluarsa)
+                    print(f"ID: {roti.id}, Deskripsi: {roti.deskripsi}, "
+                          f"Tanggal Kadaluarsa: {roti.tanggal_kadaluarsa.strftime('%Y-%m-%d')}, "
+                          f"Sisa: {hari_tersisa} hari")
+
+            elif pilihan == "3":
+                if len(rotis) < 2:
+                    print("Minimal diperlukan 2 data roti untuk analisis waktu eksekusi.")
+                    continue
+
+                print("\nMengukur dan menampilkan analisis waktu eksekusi:")
+                ukuran_data, waktu_rekursif, waktu_iteratif = ukur_waktu_eksekusi(rotis)
+
+                if ukuran_data and waktu_rekursif and waktu_iteratif:
+                    tampilkan_tabel_waktu_eksekusi(ukuran_data, waktu_iteratif, waktu_rekursif)
+                    tampilkan_grafik_waktu_eksekusi(ukuran_data, waktu_rekursif, waktu_iteratif)
+
+            elif pilihan == "4":
+                print("Terima kasih telah menggunakan program ini. Sampai jumpa kembali!")
+                return
+
+            else:
+                print("Pilihan tidak valid. Silakan pilih menu 1-4!")
+
+        except KeyboardInterrupt:
+            print("\nProgram dihentikan oleh pengguna.")
+            print("Terima kasih telah menggunakan program ini!")
+            return
+        except Exception as e:
+            print(f"Terjadi kesalahan: {str(e)}")
+            print("Silakan coba lagi.")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"\nTerjadi kesalahan fatal: {str(e)}")
+        print("Program dihentikan.")
